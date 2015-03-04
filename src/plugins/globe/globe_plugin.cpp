@@ -57,7 +57,11 @@
 #include <osgEarth/Map>
 #include <osgEarth/MapNode>
 #include <osgEarth/TileSource>
+#if OSGEARTH_VERSION_GREATER_OR_EQUAL( 2, 6, 0 )
+#include <osgEarthUtil/Sky>
+#else
 #include <osgEarthUtil/SkyNode>
+#endif
 #include <osgEarthUtil/AutoClipPlaneHandler>
 #include <osgEarthDrivers/gdal/GDALOptions>
 #include <osgEarthDrivers/tms/TMSOptions>
@@ -67,6 +71,7 @@
 #endif
 #if OSGEARTH_VERSION_GREATER_OR_EQUAL( 2, 5, 0 )
 #include <osgEarthUtil/VerticalScale>
+#include <osgEarth/DateTime>
 #endif
 using namespace osgEarth::Drivers;
 using namespace osgEarth::Util;
@@ -457,7 +462,9 @@ void GlobePlugin::setupMap()
   //LoadingPolicy loadingPolicy( LoadingPolicy::MODE_SEQUENTIAL );
   TerrainOptions terrainOptions;
   //terrainOptions.loadingPolicy() = loadingPolicy;
+#if OSGEARTH_VERSION_LESS_THAN( 2, 6, 0 )
   terrainOptions.compositingTechnique() = TerrainOptions::COMPOSITING_MULTITEXTURE_FFP;
+#endif
   //terrainOptions.lodFallOff() = 6.0;
   nodeOptions.setTerrainOptions( terrainOptions );
 
@@ -930,17 +937,29 @@ void GlobePlugin::setSkyParameters( bool enabled, const QDateTime& dateTime, boo
     {
       // Create if not yet done
       if ( !mSkyNode.get() )
+#if OSGEARTH_VERSION_GREATER_OR_EQUAL( 2, 6, 0 )
+        mSkyNode = SkyNode::create( mMapNode );
+#else
         mSkyNode = new SkyNode( mMapNode->getMap() );
+#endif
 
-#if OSGEARTH_VERSION_GREATER_OR_EQUAL( 2, 4, 0 )
+#if OSGEARTH_VERSION_GREATER_OR_EQUAL( 2, 4, 0 ) && OSGEARTH_VERSION_LESS_THAN( 2, 6, 0 )
       mSkyNode->setAutoAmbience( autoAmbience );
 #else
       Q_UNUSED( autoAmbience );
 #endif
+#if OSGEARTH_VERSION_LESS_THAN( 2, 5, 0 )
       mSkyNode->setDateTime( dateTime.date().year()
                              , dateTime.date().month()
                              , dateTime.date().day()
                              , dateTime.time().hour() + dateTime.time().minute() / 60.0 );
+#else
+      DateTime osgearthDateTime( dateTime.date().year()
+                                 , dateTime.date().month()
+                                 , dateTime.date().day()
+                                 , dateTime.time().hour() + dateTime.time().minute() / 60.0 );
+      mSkyNode->setDateTime( osgearthDateTime );
+#endif
       //sky->setSunPosition( osg::Vec3(0,-1,0) );
       mSkyNode->attach( mOsgViewer );
       mRootNode->addChild( mSkyNode );
